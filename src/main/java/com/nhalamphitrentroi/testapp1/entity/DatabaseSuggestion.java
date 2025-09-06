@@ -1,7 +1,7 @@
 package com.nhalamphitrentroi.testapp1.entity;
 
+import java.security.MessageDigest;
 import java.time.LocalDateTime;
-import java.util.UUID;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -9,9 +9,11 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 
 @Entity
-@Table(name = "DATABASE_SUGGESTION")
+@Table(name = "DATABASE_SUGGESTION", 
+       uniqueConstraints = @UniqueConstraint(columnNames = {"sql_hash"}, name = "uk_database_suggestion_sql_hash"))
 public class DatabaseSuggestion {
     
     @Id
@@ -25,6 +27,9 @@ public class DatabaseSuggestion {
     @Column(name = "sql", nullable = false, length = 65535)
     private String sql;
     
+    @Column(name = "sql_hash", nullable = false, length = 64)
+    private String sqlHash;
+    
     @Column(name = "suggestion", nullable = false, length = 65535)
     private String suggestion;
     
@@ -36,7 +41,6 @@ public class DatabaseSuggestion {
     
     // Default constructor
     public DatabaseSuggestion() {
-        this.id = UUID.randomUUID().toString();
         this.isResolved = false;
         this.createdAt = LocalDateTime.now();
     }
@@ -47,6 +51,7 @@ public class DatabaseSuggestion {
         this.databaseName = databaseName;
         this.sql = sql;
         this.suggestion = suggestion;
+        this.sqlHash = generateSqlHash(sql);
     }
     
     // Constructor with all fields including isResolved
@@ -56,6 +61,7 @@ public class DatabaseSuggestion {
         this.sql = sql;
         this.suggestion = suggestion;
         this.isResolved = isResolved;
+        this.sqlHash = generateSqlHash(sql);
     }
     
     // Getters and Setters
@@ -105,6 +111,39 @@ public class DatabaseSuggestion {
     
     public void setCreatedAt(LocalDateTime createdAt) {
         this.createdAt = createdAt;
+    }
+    
+    public String getSqlHash() {
+        return sqlHash;
+    }
+    
+    public void setSqlHash(String sqlHash) {
+        this.sqlHash = sqlHash;
+    }
+    
+    /**
+     * Generate SHA-256 hash for SQL query
+     */
+    private String generateSqlHash(String sql) {
+        if (sql == null) {
+            return null;
+        }
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] hash = digest.digest(sql.getBytes("UTF-8"));
+            StringBuilder hexString = new StringBuilder();
+            for (byte b : hash) {
+                String hex = Integer.toHexString(0xff & b);
+                if (hex.length() == 1) {
+                    hexString.append('0');
+                }
+                hexString.append(hex);
+            }
+            return hexString.toString();
+        } catch (Exception e) {
+            // Fallback to simple hash if SHA-256 is not available
+            return String.valueOf(sql.hashCode());
+        }
     }
     
     @Override

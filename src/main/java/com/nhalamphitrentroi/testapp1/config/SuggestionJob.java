@@ -19,6 +19,7 @@ import com.nhalamphitrentroi.testapp1.service.SqlAnalyzerService.SqlAnalysisResu
 public class SuggestionJob {
     
     private static final Logger logger = LoggerFactory.getLogger(SuggestionJob.class);
+    private static volatile boolean isRunning = false;
     
     @Autowired
     private DatabaseLogRepository databaseLogRepository;
@@ -28,13 +29,27 @@ public class SuggestionJob {
     
     @Autowired
     private SqlAnalyzerService sqlAnalyzerService;
-    
+
     /**
      * Scheduled job to analyze database logs and generate suggestions
-     * Runs every 30 minutes
+     * Runs every 1 minute
      */
-    @Scheduled(fixedRate = 1800000) // 30 minutes in milliseconds
+    @Scheduled(fixedRate = 60000) // 1 minute in milliseconds
     public void analyzeLogsAndGenerateSuggestions() {
+        // Check if job is already running
+        if (isRunning) {
+            logger.info("Suggestion job is already running, skipping this execution");
+            return;
+        }
+        
+        synchronized (SuggestionJob.class) {
+            if (isRunning) {
+                logger.info("Suggestion job is already running, skipping this execution");
+                return;
+            }
+            isRunning = true;
+        }
+        
         logger.info("=== STARTING SUGGESTION JOB ===");
         
         try {
@@ -64,17 +79,65 @@ public class SuggestionJob {
                                 analysis.getWhereColumns()
                             );
                             
-                            // Create and save suggestion
-                            DatabaseSuggestion databaseSuggestion = new DatabaseSuggestion(
-                                log.getDatabaseName(),
-                                log.getSql(),
-                                suggestion
-                            );
+                            // Try to save suggestion with retry logic
+                            boolean saved = false;
+                            int maxRetries = 3;
                             
-                            databaseSuggestionRepository.save(databaseSuggestion);
-                            suggestionCount++;
-                            
-                            logger.debug("Created suggestion: {}", suggestion);
+                            for (int retry = 0; retry < maxRetries && !saved; retry++) {
+                                try {
+                                    // Double-check if suggestion exists before saving (race condition protection)
+                                    String sqlHash = generateSqlHash(log.getSql());
+                                    if (!databaseSuggestionRepository.existsBySqlHash(sqlHash)) {
+                                        // Create a fresh entity to avoid Hibernate state issues
+                                        DatabaseSuggestion freshSuggestion = new DatabaseSuggestion(
+                                            log.getDatabaseName(),
+                                            log.getSql(),
+                                            suggestion
+                                        );
+                                        
+                                        databaseSuggestionRepository.saveAndFlush(freshSuggestion);
+                                        suggestionCount++;
+                                        saved = true;
+                                        logger.debug("Created suggestion: {}", suggestion);
+                                    } else {
+                                        logger.debug("Suggestion already exists for SQL (race condition): {}", log.getSql());
+                                        saved = true; // Consider this as "success" since suggestion exists
+                                    }
+                                } catch (org.hibernate.StaleObjectStateException e) {
+                                    if (retry == maxRetries - 1) {
+                                        logger.warn("StaleObjectStateException when saving suggestion for SQL: {} - suggestion may have been created by another process", log.getSql());
+                                    } else {
+                                        logger.debug("StaleObjectStateException on retry {} for SQL: {}, retrying...", retry + 1, log.getSql());
+                                        try {
+                                            Thread.sleep(100); // Brief pause before retry
+                                        } catch (InterruptedException ie) {
+                                            Thread.currentThread().interrupt();
+                                            break;
+                                        }
+                                    }
+                                } catch (org.springframework.dao.DataIntegrityViolationException e) {
+                                    if (e.getMessage().contains("unique") || e.getMessage().contains("duplicate")) {
+                                        logger.debug("Suggestion already exists for SQL (unique constraint): {}", log.getSql());
+                                        saved = true; // Consider this as "success" since suggestion exists
+                                    } else {
+                                        logger.warn("DataIntegrityViolationException when saving suggestion for SQL: {} - {}", log.getSql(), e.getMessage());
+                                        saved = true; // Don't retry for data integrity issues
+                                    }
+                                } catch (Exception e) {
+                                    if (retry == maxRetries - 1) {
+                                        logger.error("Error saving suggestion for SQL: {} - {}", log.getSql(), e.getMessage());
+                                        errorCount++;
+                                    } else {
+                                        logger.debug("Error on retry {} for SQL: {}, retrying...", retry + 1, log.getSql());
+                                        try {
+                                            Thread.sleep(100); // Brief pause before retry
+                                        } catch (InterruptedException ie) {
+                                            Thread.currentThread().interrupt();
+                                            break;
+                                        }
+                                    }
+                                }
+                            }
                         } else {
                             logger.debug("Suggestion already exists for SQL: {}", log.getSql());
                         }
@@ -95,6 +158,12 @@ public class SuggestionJob {
             
         } catch (Exception e) {
             logger.error("Error in suggestion job: {}", e.getMessage(), e);
+        } finally {
+            // Reset the running flag
+            synchronized (SuggestionJob.class) {
+                isRunning = false;
+            }
+            logger.info("Suggestion job finished, flag reset");
         }
     }
     
@@ -105,11 +174,38 @@ public class SuggestionJob {
      */
     private boolean suggestionExists(String sql) {
         try {
-            List<DatabaseSuggestion> existingSuggestions = databaseSuggestionRepository.findBySqlContaining(sql);
-            return !existingSuggestions.isEmpty();
+            // Generate hash for the SQL query
+            String sqlHash = generateSqlHash(sql);
+            // Use hash-based lookup for better performance and to avoid MySQL TEXT column issues
+            return databaseSuggestionRepository.existsBySqlHash(sqlHash);
         } catch (Exception e) {
             logger.error("Error checking existing suggestions for SQL: {}", sql, e);
             return false;
+        }
+    }
+    
+    /**
+     * Generate SHA-256 hash for SQL query (same as in DatabaseSuggestion entity)
+     */
+    private String generateSqlHash(String sql) {
+        if (sql == null) {
+            return null;
+        }
+        try {
+            java.security.MessageDigest digest = java.security.MessageDigest.getInstance("SHA-256");
+            byte[] hash = digest.digest(sql.getBytes("UTF-8"));
+            StringBuilder hexString = new StringBuilder();
+            for (byte b : hash) {
+                String hex = Integer.toHexString(0xff & b);
+                if (hex.length() == 1) {
+                    hexString.append('0');
+                }
+                hexString.append(hex);
+            }
+            return hexString.toString();
+        } catch (Exception e) {
+            // Fallback to simple hash if SHA-256 is not available
+            return String.valueOf(sql.hashCode());
         }
     }
     

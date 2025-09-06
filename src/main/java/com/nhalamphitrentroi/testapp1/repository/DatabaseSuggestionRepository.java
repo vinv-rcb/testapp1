@@ -44,6 +44,24 @@ public interface DatabaseSuggestionRepository extends JpaRepository<DatabaseSugg
     List<DatabaseSuggestion> findBySqlContaining(@Param("sql") String sql);
     
     /**
+     * Find suggestions by exact SQL match
+     */
+    @Query("SELECT d FROM DatabaseSuggestion d WHERE d.sql = :sql ORDER BY d.createdAt DESC")
+    List<DatabaseSuggestion> findByExactSql(@Param("sql") String sql);
+    
+    /**
+     * Check if suggestion exists for exact SQL
+     */
+    @Query("SELECT COUNT(d) > 0 FROM DatabaseSuggestion d WHERE d.sql = :sql")
+    boolean existsByExactSql(@Param("sql") String sql);
+    
+    /**
+     * Check if suggestion exists by SQL hash
+     */
+    @Query("SELECT COUNT(d) > 0 FROM DatabaseSuggestion d WHERE d.sqlHash = :sqlHash")
+    boolean existsBySqlHash(@Param("sqlHash") String sqlHash);
+    
+    /**
      * Find all suggestions ordered by creation date
      */
     @Query("SELECT d FROM DatabaseSuggestion d ORDER BY d.createdAt DESC")
