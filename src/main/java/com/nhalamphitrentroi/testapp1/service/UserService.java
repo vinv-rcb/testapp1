@@ -2,6 +2,7 @@ package com.nhalamphitrentroi.testapp1.service;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 
 import org.slf4j.Logger;
@@ -143,7 +144,7 @@ public class UserService {
             List<User> users = userRepository.findAll();
             
             List<UserInfoDto> userInfoList = users.stream()
-                    .filter(item -> !item.getRole().equals("ADMIN"))
+                    .filter(item -> Objects.isNull(item.getRole()) || !item.getRole().equals("ADMIN"))
                 .map(user -> new UserInfoDto(
                     user.getUsername(),
                     user.getPhoneNumber(),
