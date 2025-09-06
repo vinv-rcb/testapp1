@@ -3,17 +3,30 @@ package com.nhalamphitrentroi.testapp1.controller;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import com.nhalamphitrentroi.testapp1.dto.*;
-import com.nhalamphitrentroi.testapp1.entity.DatabaseSuggestion;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 
+import com.nhalamphitrentroi.testapp1.dto.ApiResponse;
+import com.nhalamphitrentroi.testapp1.dto.DatabaseLogResponse;
+import com.nhalamphitrentroi.testapp1.dto.DatabaseResponse;
+import com.nhalamphitrentroi.testapp1.dto.LogHintResponse;
+import com.nhalamphitrentroi.testapp1.dto.QueryUnexpectedResponse;
+import com.nhalamphitrentroi.testapp1.dto.ReportRequest;
+import com.nhalamphitrentroi.testapp1.dto.ReportSummaryResponse;
 import com.nhalamphitrentroi.testapp1.entity.Database;
 import com.nhalamphitrentroi.testapp1.entity.DatabaseLog;
+import com.nhalamphitrentroi.testapp1.entity.DatabaseSuggestion;
 import com.nhalamphitrentroi.testapp1.repository.DatabaseLogRepository;
 import com.nhalamphitrentroi.testapp1.repository.DatabaseRepository;
 import com.nhalamphitrentroi.testapp1.repository.DatabaseSuggestionRepository;
@@ -45,7 +58,7 @@ public class SqlAnalysController {
      * GET method with token verification, database filtering, and pagination
      */
     @GetMapping("/log")
-    public ResponseEntity<ApiResponse<Page<DatabaseLogResponse>>> getLogs(
+    public ResponseEntity<QueryUnexpectedResponse> getLogs(
             @RequestHeader("Authorization") String token,
             @RequestParam(required = false) String database,
             @RequestParam(defaultValue = "0") int page,
@@ -54,7 +67,7 @@ public class SqlAnalysController {
         try {
             // Verify token and check R_LOGS_MANAGE permission
             if (!isValidTokenWithPermission(token)) {
-                return ResponseEntity.ok(ApiResponse.error(500, "401", "Token không hợp lệ"));
+                return ResponseEntity.ok(new QueryUnexpectedResponse(500, "401", "Token không hợp lệ", null));
             }
             
             // Validate pagination parameters
@@ -76,21 +89,41 @@ public class SqlAnalysController {
             
             // Check if data exists
             if (logPage.isEmpty()) {
-                return ResponseEntity.ok(ApiResponse.error(500, "404", "Không tìm thấy log trên database"));
+                return ResponseEntity.ok(new QueryUnexpectedResponse(500, "404", "Không tìm thấy log trên database", null));
             }
             
             // Convert to response DTOs
-            Page<DatabaseLogResponse> responseData = logPage.map(log -> new DatabaseLogResponse(
-                    log.getDatabaseName(),
-                    log.getSql(),
-                    log.getExeTime(),
-                    log.getExeCount()
-            ));
+            List<DatabaseLogResponse> responseData = logPage.getContent().stream()
+                    .map(log -> new DatabaseLogResponse(
+                            log.getDatabaseName(),
+                            log.getSql(),
+                            log.getExeTime(),
+                            log.getExeCount()
+                    ))
+                    .collect(Collectors.toList());
             
-            return ResponseEntity.ok(ApiResponse.success(responseData));
+            // Create detailed message
+            StringBuilder messageBuilder = new StringBuilder();
+            messageBuilder.append("Showing all database logs");
+            
+            if (database != null && !database.trim().isEmpty()) {
+                messageBuilder.append(" (filtered by database: '").append(database).append("')");
+            }
+            
+            messageBuilder.append(" - Page ").append(page + 1).append(" of ").append(logPage.getTotalPages());
+            messageBuilder.append(" (").append(logPage.getTotalElements()).append(" total results)");
+            
+            // Return success response
+            return ResponseEntity.ok(new QueryUnexpectedResponse(
+                    200, "00", null, 
+                    logPage.getTotalPages(), 
+                    logPage.getTotalElements(), 
+                    responseData,
+                    messageBuilder.toString()));
             
         } catch (Exception e) {
-            return ResponseEntity.ok(ApiResponse.error(500, "500", "Lỗi hệ thống: " + e.getMessage()));
+            return ResponseEntity.ok(new QueryUnexpectedResponse(
+                    400, "00", "Lấy danh sách log không thành công", null));
         }
     }
     
