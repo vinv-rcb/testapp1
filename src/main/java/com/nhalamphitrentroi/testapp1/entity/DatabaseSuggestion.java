@@ -16,16 +16,16 @@ public class DatabaseSuggestion {
     
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
-    @Column(name = "id", columnDefinition = "VARCHAR(36)")
+    @Column(name = "id", length = 36)
     private String id;
     
     @Column(name = "database_name", length = 50, nullable = false)
     private String databaseName;
     
-    @Column(name = "sql", columnDefinition = "TEXT", nullable = false)
+    @Column(name = "sql", nullable = false, length = 65535)
     private String sql;
     
-    @Column(name = "suggestion", columnDefinition = "TEXT", nullable = false)
+    @Column(name = "suggestion", nullable = false, length = 65535)
     private String suggestion;
     
     @Column(name = "is_resolved", nullable = false)

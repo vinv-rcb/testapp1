@@ -27,7 +27,7 @@ public class DatabaseLog {
     @Column(name = "database_name", length = 50, nullable = false)
     private String databaseName;
     
-    @Column(name = "sql", columnDefinition = "TEXT", nullable = false)
+    @Column(name = "sql", nullable = false, length = 65535)
     private String sql;
     
     @Column(name = "exe_time", nullable = false)
