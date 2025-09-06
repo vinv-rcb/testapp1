@@ -7,10 +7,16 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.Index;
 import jakarta.persistence.Table;
 
 @Entity
-@Table(name = "DATABASE_LOG")
+@Table(name = "DATABASE_LOG", indexes = {
+    @Index(name = "idx_database_name", columnList = "database_name"),
+    @Index(name = "idx_exe_time", columnList = "exe_time"),
+    @Index(name = "idx_exe_count", columnList = "exe_count"),
+    @Index(name = "idx_created_at", columnList = "created_at")
+})
 public class DatabaseLog {
     
     @Id

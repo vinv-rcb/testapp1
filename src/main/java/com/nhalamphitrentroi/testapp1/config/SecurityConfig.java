@@ -57,6 +57,7 @@ public class SecurityConfig {
                 // Allow sqlanalys API endpoints (they handle their own token validation)
                 .requestMatchers("/sqlanalys/database").permitAll()
                 .requestMatchers("/sqlanalys/log").permitAll()
+                .requestMatchers("/sqlanalys/query-unexpected").permitAll()
                 
                 // Allow admin endpoints (for now, in production you'd want proper authentication)
                 .requestMatchers("/sqlanalys/admin/**").permitAll()

@@ -3,7 +3,11 @@ package com.nhalamphitrentroi.testapp1.controller;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import com.nhalamphitrentroi.testapp1.dto.QueryUnexpectedResponse;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -139,6 +143,61 @@ public class SqlAnalysController {
         } catch (Exception e) {
             System.err.println("Token validation error: " + e.getMessage());
             return false;
+        }
+    }
+    
+    /**
+     * API: sqlanalys/query-unexpected
+     * GET method to get unexpected queries with exe_time > 500 AND exe_count > 100
+     */
+    @GetMapping("/query-unexpected")
+    public ResponseEntity<QueryUnexpectedResponse> getUnexpectedQueries(
+            @RequestHeader("Authorization") String token,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) String sql,
+            @RequestParam(required = false) String database) {
+        
+        try {
+            // Verify token and check R_LOGS_MANAGE permission
+            if (!isValidTokenWithPermission(token)) {
+                return ResponseEntity.ok(new QueryUnexpectedResponse(
+                    500, "401", "Token không hợp lệ", null));
+            }
+            
+            // Validate pagination parameters
+            if (page < 0) page = 0;
+            if (size <= 0) size = 10;
+            if (size > 100) size = 100; // Limit max page size
+            
+            // Create pageable object
+            Pageable pageable = PageRequest.of(page, size);
+            
+            // Search for unexpected queries
+            Page<DatabaseLog> logPage = databaseLogRepository.findUnexpectedQueries(
+                sql, database, pageable);
+            
+            // Convert to response DTOs
+            List<DatabaseLogResponse> responseData = logPage.getContent().stream()
+                    .map(log -> new DatabaseLogResponse(
+                            log.getDatabaseName(),
+                            log.getSql(),
+                            log.getExeTime(),
+                            log.getExeCount()
+                    ))
+                    .collect(Collectors.toList());
+            
+            // Return success response
+            return ResponseEntity.ok(new QueryUnexpectedResponse(
+                200, "00", null, 
+                logPage.getTotalPages(), 
+                logPage.getTotalElements(), 
+                responseData));
+            
+        } catch (Exception e) {
+            // Return error response
+            return ResponseEntity.ok(new QueryUnexpectedResponse(
+                400, "00", "Lấy danh sách log không thành công", null));
         }
     }
 }
