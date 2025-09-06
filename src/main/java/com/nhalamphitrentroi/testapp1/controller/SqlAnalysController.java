@@ -3,26 +3,21 @@ package com.nhalamphitrentroi.testapp1.controller;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import com.nhalamphitrentroi.testapp1.dto.*;
+import com.nhalamphitrentroi.testapp1.entity.DatabaseSuggestion;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.CrossOrigin;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestHeader;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
-import com.nhalamphitrentroi.testapp1.dto.ApiResponse;
-import com.nhalamphitrentroi.testapp1.dto.DatabaseLogResponse;
-import com.nhalamphitrentroi.testapp1.dto.DatabaseResponse;
-import com.nhalamphitrentroi.testapp1.dto.QueryUnexpectedResponse;
 import com.nhalamphitrentroi.testapp1.entity.Database;
 import com.nhalamphitrentroi.testapp1.entity.DatabaseLog;
 import com.nhalamphitrentroi.testapp1.repository.DatabaseLogRepository;
 import com.nhalamphitrentroi.testapp1.repository.DatabaseRepository;
+import com.nhalamphitrentroi.testapp1.repository.DatabaseSuggestionRepository;
+import com.nhalamphitrentroi.testapp1.service.ReportService;
 import com.nhalamphitrentroi.testapp1.util.JwtUtil;
 
 @RestController
@@ -35,6 +30,12 @@ public class SqlAnalysController {
     
     @Autowired
     private DatabaseRepository databaseRepository;
+    
+    @Autowired
+    private DatabaseSuggestionRepository databaseSuggestionRepository;
+    
+    @Autowired
+    private ReportService reportService;
     
     @Autowired
     private JwtUtil jwtUtil;
@@ -221,6 +222,130 @@ public class SqlAnalysController {
             // Return error response
             return ResponseEntity.ok(new QueryUnexpectedResponse(
                 400, "00", "Lấy danh sách log không thành công", null));
+        }
+    }
+    
+    /**
+     * API: sqlanalys/create-report
+     * GET method to get report summary statistics
+     */
+    @GetMapping("/create-report")
+    public ResponseEntity<ReportSummaryResponse> createReport(
+            @RequestHeader("Authorization") String token) {
+        
+        try {
+            // Verify token and check R_LOGS_MANAGE permission
+            if (!isValidTokenWithPermission(token)) {
+                return ResponseEntity.ok(new ReportSummaryResponse(500, "401", "Token không hợp lệ", 0, 0, 0));
+            }
+            
+            // Count total logs
+            long total = databaseLogRepository.count();
+            
+            // Count unexpected logs (exe_time > 500 AND exe_count > 100)
+            long totalUnexpected = databaseLogRepository.countUnexpectedQueries(null, null);
+            
+            // Count total suggestions
+            long totalHint = databaseSuggestionRepository.count();
+            
+            return ResponseEntity.ok(new ReportSummaryResponse(
+                200, "00", null, total, totalUnexpected, totalHint));
+            
+        } catch (Exception e) {
+            return ResponseEntity.ok(new ReportSummaryResponse(
+                400, "00", "Tổng hợp không thành công", 0, 0, 0));
+        }
+    }
+    
+    /**
+     * API: sqlanalys/log-hint
+     * GET method to get log hints with pagination
+     */
+    @GetMapping("/log-hint")
+    public ResponseEntity<LogHintResponse> getLogHints(
+            @RequestHeader("Authorization") String token,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        
+        try {
+            // Verify token and check R_LOGS_MANAGE permission
+            if (!isValidTokenWithPermission(token)) {
+                return ResponseEntity.ok(new LogHintResponse(500, "401", "Token không hợp lệ", 0, 0, null));
+            }
+            
+            // Validate pagination parameters
+            if (page < 0) page = 0;
+            if (size <= 0) size = 10;
+            if (size > 100) size = 100; // Limit max page size
+            
+            // Create pageable object
+            Pageable pageable = PageRequest.of(page, size);
+            
+            // Get suggestions with pagination
+            Page<DatabaseSuggestion> suggestionPage = databaseSuggestionRepository.findAll(pageable);
+            
+            // Convert to response DTOs
+            List<LogHintResponse.LogHintItem> listLog = suggestionPage.getContent().stream()
+                    .map(suggestion -> new LogHintResponse.LogHintItem(
+                            suggestion.getDatabaseName(),
+                            suggestion.getSql(),
+                            suggestion.getSuggestion(),
+                            suggestion.getIsResolved()
+                    ))
+                    .collect(Collectors.toList());
+            
+            return ResponseEntity.ok(new LogHintResponse(
+                200, "00", null,
+                suggestionPage.getTotalPages(),
+                suggestionPage.getTotalElements(),
+                listLog));
+            
+        } catch (Exception e) {
+            return ResponseEntity.ok(new LogHintResponse(
+                400, "00", "Lấy danh sách log bất thường và gợi ý không thành công", 0, 0, null));
+        }
+    }
+    
+    /**
+     * API: sqlanalys/report
+     * POST method to export report to CSV or PDF
+     */
+    @PostMapping("/report")
+    public ResponseEntity<ApiResponse<byte[]>> exportReport(
+            @RequestHeader("Authorization") String token,
+            @RequestBody ReportRequest request) {
+        
+        try {
+            // Verify token and check R_LOGS_MANAGE permission
+            if (!isValidTokenWithPermission(token)) {
+                return ResponseEntity.ok(ApiResponse.error(500, "401", "Token không hợp lệ"));
+            }
+            
+            // Validate request
+            if (request.getType() == null || request.getType().trim().isEmpty()) {
+                return ResponseEntity.ok(ApiResponse.error(400, "00", "Loại báo cáo không hợp lệ"));
+            }
+            
+            String type = request.getType().toUpperCase();
+            if (!"CSV".equals(type) && !"PDF".equals(type)) {
+                return ResponseEntity.ok(ApiResponse.error(400, "00", "Loại báo cáo phải là CSV hoặc PDF"));
+            }
+            
+            // Export data
+            byte[] content;
+            if ("CSV".equals(type)) {
+                content = reportService.exportToCsv();
+            } else {
+                content = reportService.exportToPdf();
+            }
+            
+            // Save to D: drive
+            String filePath = reportService.saveReportToDrive(content, type);
+            
+            return ResponseEntity.ok(ApiResponse.success(content));
+            
+        } catch (Exception e) {
+            return ResponseEntity.ok(ApiResponse.error(400, "00", "Xuất báo cáo không thành công"));
         }
     }
 }

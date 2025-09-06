@@ -62,6 +62,11 @@ public class SecurityConfig {
                 .requestMatchers("/sqlanalys/suggestion").permitAll()
                 .requestMatchers("/sqlanalys/suggestion/done").permitAll()
                 
+                // Allow report endpoints
+                .requestMatchers("/sqlanalys/create-report").permitAll()
+                .requestMatchers("/sqlanalys/log-hint").permitAll()
+                .requestMatchers("/sqlanalys/report").permitAll()
+                
                 // Allow admin endpoints (for now, in production you'd want proper authentication)
                 .requestMatchers("/sqlanalys/admin/**").permitAll()
                 
