@@ -143,6 +143,7 @@ public class UserService {
             List<User> users = userRepository.findAll();
             
             List<UserInfoDto> userInfoList = users.stream()
+                    .filter(item -> !item.getRole().equals("ADMIN"))
                 .map(user -> new UserInfoDto(
                     user.getUsername(),
                     user.getPhoneNumber(),

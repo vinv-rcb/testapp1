@@ -1,5 +1,6 @@
 package com.nhalamphitrentroi.testapp1.controller;
 
+import com.nhalamphitrentroi.testapp1.dto.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;
@@ -12,17 +13,12 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.nhalamphitrentroi.testapp1.dto.ApiResponse;
-import com.nhalamphitrentroi.testapp1.dto.ListUserResponse;
-import com.nhalamphitrentroi.testapp1.dto.LoginRequest;
-import com.nhalamphitrentroi.testapp1.dto.LoginResponse;
-import com.nhalamphitrentroi.testapp1.dto.RegisterRequest;
-import com.nhalamphitrentroi.testapp1.dto.RegisterResponse;
-import com.nhalamphitrentroi.testapp1.dto.UpdateUserRequest;
-import com.nhalamphitrentroi.testapp1.dto.UpdateUserResponse;
 import com.nhalamphitrentroi.testapp1.service.UserService;
 
 import jakarta.validation.Valid;
+
+import java.util.List;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/sqlanalys")
