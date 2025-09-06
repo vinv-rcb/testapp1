@@ -19,8 +19,20 @@ public interface DatabaseLogRepository extends JpaRepository<DatabaseLog, Long> 
     @Query("SELECT d FROM DatabaseLog d WHERE d.databaseName = :databaseName ORDER BY d.createdAt DESC")
     List<DatabaseLog> findLogsByDatabaseName(@Param("databaseName") String databaseName);
     
+    /**
+     * Find logs by database name with pagination
+     */
+    @Query("SELECT d FROM DatabaseLog d WHERE d.databaseName = :databaseName ORDER BY d.createdAt DESC")
+    Page<DatabaseLog> findLogsByDatabaseNameWithPagination(@Param("databaseName") String databaseName, Pageable pageable);
+    
     @Query("SELECT d FROM DatabaseLog d ORDER BY d.createdAt DESC")
     List<DatabaseLog> findAllLogsOrderByCreatedAtDesc();
+    
+    /**
+     * Find all logs ordered by creation date with pagination
+     */
+    @Query("SELECT d FROM DatabaseLog d ORDER BY d.createdAt DESC")
+    Page<DatabaseLog> findAllLogsOrderByCreatedAtDescWithPagination(Pageable pageable);
     
     /**
      * Find unexpected queries with exe_time > 500 AND exe_count > 100

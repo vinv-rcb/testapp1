@@ -41,12 +41,14 @@ public class SqlAnalysController {
     
     /**
      * API: sqlanalys/log
-     * GET method with token verification and database filtering
+     * GET method with token verification, database filtering, and pagination
      */
     @GetMapping("/log")
-    public ResponseEntity<ApiResponse<List<DatabaseLogResponse>>> getLogs(
+    public ResponseEntity<ApiResponse<Page<DatabaseLogResponse>>> getLogs(
             @RequestHeader("Authorization") String token,
-            @RequestParam(required = false) String database) {
+            @RequestParam(required = false) String database,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
         
         try {
             // Verify token and check R_LOGS_MANAGE permission
@@ -54,29 +56,35 @@ public class SqlAnalysController {
                 return ResponseEntity.ok(ApiResponse.error(500, "401", "Token không hợp lệ"));
             }
             
-            List<DatabaseLog> logs;
+            // Validate pagination parameters
+            if (page < 0) page = 0;
+            if (size <= 0) size = 10;
+            if (size > 100) size = 100; // Limit max page size
             
-            // Query logs based on database parameter
+            // Create pageable object
+            Pageable pageable = PageRequest.of(page, size);
+            
+            Page<DatabaseLog> logPage;
+            
+            // Query logs based on database parameter with pagination
             if (database != null && !database.trim().isEmpty()) {
-                logs = databaseLogRepository.findLogsByDatabaseName(database);
+                logPage = databaseLogRepository.findLogsByDatabaseNameWithPagination(database, pageable);
             } else {
-                logs = databaseLogRepository.findAllLogsOrderByCreatedAtDesc();
+                logPage = databaseLogRepository.findAllLogsOrderByCreatedAtDescWithPagination(pageable);
             }
             
             // Check if data exists
-            if (logs.isEmpty()) {
+            if (logPage.isEmpty()) {
                 return ResponseEntity.ok(ApiResponse.error(500, "404", "Không tìm thấy log trên database"));
             }
             
             // Convert to response DTOs
-            List<DatabaseLogResponse> responseData = logs.stream()
-                    .map(log -> new DatabaseLogResponse(
-                            log.getDatabaseName(),
-                            log.getSql(),
-                            log.getExeTime(),
-                            log.getExeCount()
-                    ))
-                    .collect(Collectors.toList());
+            Page<DatabaseLogResponse> responseData = logPage.map(log -> new DatabaseLogResponse(
+                    log.getDatabaseName(),
+                    log.getSql(),
+                    log.getExeTime(),
+                    log.getExeCount()
+            ));
             
             return ResponseEntity.ok(ApiResponse.success(responseData));
             
