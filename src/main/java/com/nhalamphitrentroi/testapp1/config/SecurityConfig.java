@@ -58,6 +58,9 @@ public class SecurityConfig {
                 .requestMatchers("/sqlanalys/database").permitAll()
                 .requestMatchers("/sqlanalys/log").permitAll()
                 .requestMatchers("/sqlanalys/query-unexpected").permitAll()
+                .requestMatchers("/sqlanalys/suggestions/**").permitAll()
+                .requestMatchers("/sqlanalys/suggestion").permitAll()
+                .requestMatchers("/sqlanalys/suggestion/done").permitAll()
                 
                 // Allow admin endpoints (for now, in production you'd want proper authentication)
                 .requestMatchers("/sqlanalys/admin/**").permitAll()

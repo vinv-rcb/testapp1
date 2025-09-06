@@ -44,4 +44,13 @@ public interface DatabaseLogRepository extends JpaRepository<DatabaseLog, Long> 
            "(:sql IS NULL OR LOWER(d.sql) LIKE LOWER(CONCAT('%', :sql, '%'))) AND " +
            "(:databaseName IS NULL OR LOWER(d.databaseName) LIKE LOWER(CONCAT('%', :databaseName, '%')))")
     long countUnexpectedQueries(@Param("sql") String sql, @Param("databaseName") String databaseName);
+    
+    /**
+     * Find problematic logs with exe_time > 500 OR exe_count > 100
+     * Used by suggestion job
+     */
+    @Query("SELECT d FROM DatabaseLog d WHERE " +
+           "d.exeTime > 500 OR d.exeCount > 100 " +
+           "ORDER BY d.exeTime DESC, d.exeCount DESC")
+    List<DatabaseLog> findProblematicLogs();
 }

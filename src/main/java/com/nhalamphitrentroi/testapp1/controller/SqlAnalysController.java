@@ -3,7 +3,6 @@ package com.nhalamphitrentroi.testapp1.controller;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import com.nhalamphitrentroi.testapp1.dto.QueryUnexpectedResponse;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -19,6 +18,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.nhalamphitrentroi.testapp1.dto.ApiResponse;
 import com.nhalamphitrentroi.testapp1.dto.DatabaseLogResponse;
 import com.nhalamphitrentroi.testapp1.dto.DatabaseResponse;
+import com.nhalamphitrentroi.testapp1.dto.QueryUnexpectedResponse;
 import com.nhalamphitrentroi.testapp1.entity.Database;
 import com.nhalamphitrentroi.testapp1.entity.DatabaseLog;
 import com.nhalamphitrentroi.testapp1.repository.DatabaseLogRepository;
@@ -187,12 +187,27 @@ public class SqlAnalysController {
                     ))
                     .collect(Collectors.toList());
             
+            // Create detailed message
+            StringBuilder messageBuilder = new StringBuilder();
+            messageBuilder.append("Showing queries with execution time > 500ms and execution count > 100");
+            
+            if (sql != null && !sql.trim().isEmpty()) {
+                messageBuilder.append(" (filtered by SQL containing: '").append(sql).append("')");
+            }
+            if (database != null && !database.trim().isEmpty()) {
+                messageBuilder.append(" (filtered by database: '").append(database).append("')");
+            }
+            
+            messageBuilder.append(" - Page ").append(page + 1).append(" of ").append(logPage.getTotalPages());
+            messageBuilder.append(" (").append(logPage.getTotalElements()).append(" total results)");
+            
             // Return success response
             return ResponseEntity.ok(new QueryUnexpectedResponse(
                 200, "00", null, 
                 logPage.getTotalPages(), 
                 logPage.getTotalElements(), 
-                responseData));
+                responseData,
+                messageBuilder.toString()));
             
         } catch (Exception e) {
             // Return error response
