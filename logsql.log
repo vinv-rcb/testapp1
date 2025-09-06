@@ -1,0 +1,7 @@
+DB:BIZ,sql:SELECT * FROM accounts_90 account_id=112,exec_time_ms:513,exec_count:17
+DB:BIZ,sql:SELECT * FROM accounts_91 account_id=113,exec_time_ms:295,exec_count:68
+DB:BIZ,sql:SELECT * FROM accounts_92 account_id=114,exec_time_ms:172,exec_count:20
+DB:BIZ,sql:SELECT * FROM accounts_93 account_id=115,exec_time_ms:344,exec_count:45
+DB:BIZ,sql:SELECT * FROM accounts_94 account_id=116,exec_time_ms:310,exec_count:47
+DB:BIZ,sql:SELECT * FROM accounts_95 account_id=117,exec_time_ms:358,exec_count:78
+DB:BIZ,sql:SELECT * FROM accounts_96 account_id=118,exec_time_ms:197,exec_count:11

@@ -54,8 +54,17 @@ public class SecurityConfig {
                 .requestMatchers("/sqlanalys/test").permitAll()
                 .requestMatchers("/sqlanalys/health").permitAll()
                 
+                // Allow sqlanalys API endpoints (they handle their own token validation)
+                .requestMatchers("/sqlanalys/database").permitAll()
+                .requestMatchers("/sqlanalys/log").permitAll()
+                
                 // Allow admin endpoints (for now, in production you'd want proper authentication)
                 .requestMatchers("/sqlanalys/admin/**").permitAll()
+                
+                // Allow sqlanalys endpoints (they handle their own token validation)
+                .requestMatchers("/api/sqlanalys/**").permitAll()
+                .requestMatchers("/api/logs/**").permitAll()
+                .requestMatchers("/api/verification/**").permitAll()
                 
                 // Allow H2 console and actuator
                 .requestMatchers("/h2-console/**").permitAll()
