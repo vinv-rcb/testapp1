@@ -1,10 +1,16 @@
 package com.nhalamphitrentroi.testapp1.entity;
 
-import jakarta.persistence.*;
+import java.time.LocalDate;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
-import java.time.LocalDate;
 
 @Entity
 @Table(name = "users")
@@ -14,12 +20,10 @@ public class User {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
     
-    @NotBlank(message = "Title is required")
-    @Column(name = "title", nullable = false)
+    @Column(name = "title")
     private String title;
     
-    @NotBlank(message = "Department is required")
-    @Column(name = "department", nullable = false)
+    @Column(name = "department")
     private String department;
     
     @NotBlank(message = "Username is required")
@@ -38,8 +42,7 @@ public class User {
     @Column(name = "join_date", nullable = false)
     private LocalDate joinDate;
     
-    @NotBlank(message = "Phone number is required")
-    @Column(name = "phone_number", nullable = false)
+    @Column(name = "phone_number")
     private String phoneNumber;
     
     @Email(message = "Email should be valid")
@@ -47,15 +50,17 @@ public class User {
     @Column(name = "email", nullable = false, unique = true)
     private String email;
     
-    @NotBlank(message = "Role is required")
-    @Column(name = "role", nullable = false)
+    @Column(name = "role", nullable = true)
     private String role;
+    
+    @Column(name = "status", nullable = false)
+    private String status;
     
     // Constructors
     public User() {}
     
     public User(String title, String department, String username, String password, 
-                String name, LocalDate joinDate, String phoneNumber, String email, String role) {
+                String name, LocalDate joinDate, String phoneNumber, String email, String role, String status) {
         this.title = title;
         this.department = department;
         this.username = username;
@@ -65,6 +70,7 @@ public class User {
         this.phoneNumber = phoneNumber;
         this.email = email;
         this.role = role;
+        this.status = status;
     }
     
     // Getters and Setters
@@ -146,5 +152,13 @@ public class User {
     
     public void setRole(String role) {
         this.role = role;
+    }
+    
+    public String getStatus() {
+        return status;
+    }
+    
+    public void setStatus(String status) {
+        this.status = status;
     }
 }
